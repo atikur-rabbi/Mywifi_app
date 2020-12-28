@@ -21,75 +21,97 @@ public class MainActivity extends AppCompatActivity {
     private ListView wifiList;
     private WifiManager wifiManager;
     private final int MY_PERMISSIONS_ACCESS_COARSE_LOCATION = 1;
-    WifiReceiver receiverWifi;
+    private WifiReceiver receiverWifi;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         wifiList = findViewById(R.id.wifiList);
         Button buttonScan = findViewById(R.id.scanBtn);
-        wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        buttonScan.setOnClickListener(e -> doScan());
+        wifiManager = (WifiManager) this.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         if (!wifiManager.isWifiEnabled()) {
-            Toast.makeText(getApplicationContext(), "Turning WiFi ON...", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Turning WiFi ON...", Toast.LENGTH_LONG).show();
             wifiManager.setWifiEnabled(true);
         }
-        buttonScan.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(
-                            MainActivity.this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, MY_PERMISSIONS_ACCESS_COARSE_LOCATION);
-                } else {
-                    wifiManager.startScan();
-                }
-            }
-        });
     }
+
     @Override
-    protected void onPostResume() {
-        super.onPostResume();
+    protected void onResume() {
+        super.onResume();
         receiverWifi = new WifiReceiver(wifiManager, wifiList);
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
         registerReceiver(receiverWifi, intentFilter);
-        getWifi();
+        //getWifi();
     }
-    private void getWifi() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Toast.makeText(MainActivity.this, "version> = marshmallow", Toast.LENGTH_SHORT).show();
-            if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(MainActivity.this, "location turned off", Toast.LENGTH_SHORT).show();
-                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-                        MY_PERMISSIONS_ACCESS_COARSE_LOCATION);
-            } else {
-                Toast.makeText(MainActivity.this, "location turned on", Toast.LENGTH_SHORT).show();
-                wifiManager.startScan();
-            }
-        } else {
-            Toast.makeText(MainActivity.this, "scanning", Toast.LENGTH_SHORT).show();
-            wifiManager.startScan();
-        }
+
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
     }
+
     @Override
     protected void onPause() {
         super.onPause();
+        //unregisterReceiver(receiverWifi);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
         unregisterReceiver(receiverWifi);
     }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         switch (requestCode) {
             case MY_PERMISSIONS_ACCESS_COARSE_LOCATION:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(MainActivity.this, "permission granted", Toast.LENGTH_SHORT).show();
-                wifiManager.startScan();
-            } else {
-                Toast.makeText(MainActivity.this, "permission not granted", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            break;
+                    Toast.makeText(this, "permission granted", Toast.LENGTH_LONG).show();
+                    wifiManager.startScan();
+                }
+                else {
+                    Toast.makeText(this, "permission not granted", Toast.LENGTH_LONG).show();
+                }
+                break;
         }
     }
+
+    private void doScan() {
+        doGrantLocPermission();
+        boolean success = wifiManager.startScan();
+        if (!success) {
+            scanFailure(this);
+        }
+        wifiManager.startScan();
+    }
+
+    private void getWifi() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Toast.makeText(this, "version> = marshmallow", Toast.LENGTH_LONG).show();
+            doGrantLocPermission();
+        }
+        else {
+            Toast.makeText(this, "scanning", Toast.LENGTH_SHORT).show();
+        }
+
+
+    }
+    private void scanFailure(Context context) {
+        Toast.makeText(context, "scan Failure...", Toast.LENGTH_LONG).show();
+    }
+    private void doGrantLocPermission() {
+        int permissionCode = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION);
+        if (permissionCode != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(MainActivity.this, "location turned off", Toast.LENGTH_SHORT).show();
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, MY_PERMISSIONS_ACCESS_COARSE_LOCATION);
+        }
+        else {
+            Toast.makeText(this, "location turned on", Toast.LENGTH_SHORT).show();
+        }
+    }
+
 }
